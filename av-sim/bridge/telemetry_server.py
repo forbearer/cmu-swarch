@@ -67,4 +67,10 @@ async def main(host='0.0.0.0', port=8765):
 
 
 if __name__ == '__main__':
-  asyncio.run(main())
+  import argparse
+  parser = argparse.ArgumentParser(description='Relay openpilot telemetry to WebSocket clients.')
+  parser.add_argument('--host', default='0.0.0.0')
+  parser.add_argument('--port', type=int, default=8765,
+                       help='use a distinct port per vehicle when running more than one AV Sim instance')
+  args = parser.parse_args()
+  asyncio.run(main(args.host, args.port))

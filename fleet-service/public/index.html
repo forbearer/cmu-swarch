@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CMU SWArch — Fleet Management</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; margin: 24px; }
+    h1 { font-size: 18px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+    th { background: #1a1a1a; }
+    .status-driving { color: #4da3ff; }
+    .status-idle { color: #ccc; }
+    .status-stale { color: #e0a500; }
+    .status-offline { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Fleet Management</h1>
+  <table id="fleet">
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Status</th><th>Lat</th><th>Lon</th><th>Speed (m/s)</th><th>Last Seen</th></tr>
+    </thead>
+    <tbody id="fleet-body"></tbody>
+  </table>
+
+  <script>
+    async function refresh() {
+      const res = await fetch('/api/fleet');
+      const vehicles = await res.json();
+      const body = document.getElementById('fleet-body');
+      body.innerHTML = vehicles.map((v) => `
+        <tr>
+          <td>${v.id}</td>
+          <td>${v.name}</td>
+          <td class="status-${v.status}">${v.status}</td>
+          <td>${v.lat !== null ? v.lat.toFixed(6) : '-'}</td>
+          <td>${v.lon !== null ? v.lon.toFixed(6) : '-'}</td>
+          <td>${v.speed !== null ? v.speed.toFixed(1) : '-'}</td>
+          <td>${v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString() : 'never'}</td>
+        </tr>
+      `).join('');
+    }
+
+    refresh();
+    setInterval(refresh, 1000);
+  </script>
+</body>
+</html>

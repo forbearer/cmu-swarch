@@ -96,13 +96,16 @@ Pipeline/blackboard-adjacent architectural style, distinct from the other two su
 ## Repository Layout
 
 ```
-av-sim/            # AV Sim subsystem (in progress, see av-sim/README.md)
-  openpilot/        # git submodule: commaai/openpilot, pinned
-  bridge/           # waypoint-driving bridge + telemetry WebSocket server
-  viewer/           # browser viewer (three.js, no build step)
+av-sim/              # AV Sim subsystem (in progress, see av-sim/README.md)
+  openpilot/          # git submodule: commaai/openpilot, pinned
+  bridge/             # waypoint-driving bridge + telemetry WebSocket server
+  viewer/             # browser viewer (three.js, no build step)
+fleet-service/        # Fleet Management Service (scaffolded + verified, see fleet-service/README.md)
+  src/                # Express API + WebSocket client(s) into AV Sim telemetry
+  public/             # table dashboard
 ```
 
-Fleet management service and ML training pipeline directories not yet created.
+ML training pipeline directory not yet created.
 
 ## Status
 
@@ -122,7 +125,15 @@ including what "waypoint A to B" does and doesn't mean yet, is in `av-sim/README
 class names, cereal schema fields all confirmed against commit `a742df6`), but not yet executed
 on real hardware. That needs a run on a machine with openpilot's dependencies installed.
 
-Fleet management service and ML training pipeline: not started.
+**Fleet Management Service scaffolded and actually verified end-to-end** (unlike AV Sim, this one
+has no heavy native dependencies, so it could be run directly in this session): Express API +
+dashboard, connecting out as a WebSocket client to each AV Sim's `telemetry_server.py`. Confirmed
+`offline` with no AV Sim running, confirmed `driving` with live lat/lon/speed against a stand-in
+telemetry source emitting the real contract shape, confirmed degradation back to `offline` on
+disconnect. Full detail in `fleet-service/README.md`. Not yet checked against a real running AV
+Sim, only a stand-in emitting the same JSON shape.
+
+ML training pipeline: not started.
 
 ## Open Questions
 

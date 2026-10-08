@@ -1,0 +1,5 @@
+{
+  "vehicles": [
+    { "id": "av-1", "name": "AV Sim 1", "wsUrl": "ws://localhost:8765" }
+  ]
+}

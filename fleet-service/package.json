@@ -1,0 +1,14 @@
+{
+  "name": "cmu-swarch-fleet-service",
+  "version": "0.1.0",
+  "description": "Fleet management service for the CMU SWArch AV Sim project: tracks AVs, their whereabouts, and latest travel status.",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
