@@ -95,18 +95,43 @@ Pipeline/blackboard-adjacent architectural style, distinct from the other two su
 
 ## Repository Layout
 
-_To be established as implementation starts — placeholder until the first subsystem is scaffolded._
+```
+av-sim/            # AV Sim subsystem (in progress, see av-sim/README.md)
+  openpilot/        # git submodule: commaai/openpilot, pinned
+  bridge/           # waypoint-driving bridge + telemetry WebSocket server
+  viewer/           # browser viewer (three.js, no build step)
+```
+
+Fleet management service and ML training pipeline directories not yet created.
 
 ## Status
 
-Early planning stage. Proposal drafted by Owen; this README ports that proposal and will be kept
-up to date as the project's architecture and scope are decided.
+**2026-10-08 — AV Sim scaffolded, not yet run end-to-end.** Decided: browser rendering via a
+lightweight three.js viewer fed by openpilot's own telemetry (not CARLA/Unreal, not a from-scratch
+renderer — see Open Questions below for the tradeoff). AV Sim is first in build order, since fleet
+service and the ML pipeline both consume its output.
+
+Added `av-sim/openpilot` as a git submodule (pinned at `a742df6`), plus a `waypoint_bridge.py`
+that re-enables MetaDrive's own point-to-point driving task (openpilot's stock sim demo loops a
+closed-loop track forever instead — confirmed by reading `tools/sim/bridge/metadrive/
+metadrive_bridge.py` directly) and a `telemetry_server.py` that subscribes to openpilot's own
+cereal message bus and republishes state over a WebSocket for the browser viewer. Full detail,
+including what "waypoint A to B" does and doesn't mean yet, is in `av-sim/README.md`.
+
+**Not yet verified end-to-end** — written and checked against openpilot's actual source (paths,
+class names, cereal schema fields all confirmed against commit `a742df6`), but not yet executed
+on real hardware. That needs a run on a machine with openpilot's dependencies installed.
+
+Fleet management service and ML training pipeline: not started.
 
 ## Open Questions
 
-- Unreal-like rendering: which of the three AV Sim rendering options above (re-render MetaDrive
-  state in-browser, swap to a CARLA/Unreal bridge, or a simplified custom renderer) fits the
-  course's time budget and teaching goals?
+- ~~Unreal-like rendering~~ **Decided 2026-10-08:** re-render MetaDrive/openpilot telemetry
+  in-browser via three.js (option 1). CARLA/Unreal stays an option to revisit later if the course
+  wants higher visual fidelity than this gives.
+- Arbitrary waypoint coordinates (student types in A and B) vs. MetaDrive's own randomly
+  generated start/destination (what's implemented now) — needs MetaDrive's navigation/route API,
+  not yet looked into.
 - ROS: adopt it as a messaging layer for part of the system (for architectural-style contrast with
   openpilot's native `cereal` IPC), or leave it out?
 - The second reference project (ROS-based, from a Mathworks symposium) — name/link still needed

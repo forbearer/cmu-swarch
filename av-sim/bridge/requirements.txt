@@ -1,0 +1,3 @@
+# Extra dependency on top of openpilot's own .venv (created by openpilot/tools/op.sh setup).
+# Install into that same venv: source av-sim/openpilot/.venv/bin/activate && pip install -r requirements.txt
+websockets>=12.0

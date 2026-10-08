@@ -1,0 +1,114 @@
+# AV Sim
+
+Drives a simulated vehicle from waypoint A to waypoint B using the real openpilot driving stack
+(perception, planning, control), with a lightweight browser view fed by openpilot's own
+telemetry.
+
+## Architecture
+
+```
+ ┌────────────────────┐     camera frames / CAN      ┌──────────────────────┐
+ │  MetaDrive (via     │ <───────────────────────────>│  openpilot            │
+ │  waypoint_bridge.py)│                               │  (launch_openpilot.sh)│
+ └─────────┬───────────┘                               └───────────┬──────────┘
+           │ vehicle position/state (python, in-process)            │ cereal pub/sub
+           │                                                        │ (liveLocationKalman,
+           │                                                        │  selfdriveState)
+           │                                            ┌───────────▼──────────┐
+           │                                            │  telemetry_server.py  │
+           │                                            │  (cereal subscriber,  │
+           │                                            │   WebSocket server)   │
+           │                                            └───────────┬──────────┘
+           │                                                        │ JSON over WebSocket
+           │                                            ┌───────────▼──────────┐
+           └─ (rendered to MetaDrive's own camera,       │  viewer/ (three.js,   │
+              consumed by openpilot's perception,         │  browser)             │
+              not shown to the user)                      └───────────────────────┘
+```
+
+Three pieces, three different architectural styles deliberately, matching the course's own
+framing:
+1. **openpilot + waypoint_bridge.py** — the real driving stack (robotic control / pipeline
+   style), running against MetaDrive instead of a real car.
+2. **telemetry_server.py** — a cereal (pub/sub messaging) subscriber that republishes state as a
+   WebSocket feed. This is the "pipeline feeding a presentation tier" seam, and the main course
+   artifact worth drawing architectural attention to: it's a second, independent consumer of
+   openpilot's own message bus, exactly the way openpilot's own UI, `cabana`, and `plotjuggler`
+   are — nothing here reaches into openpilot internals.
+3. **viewer/** — a static, build-free three.js page, N-tier client of the telemetry server.
+
+## What "waypoint A to B" means today
+
+**Not yet: two specific user-chosen coordinates.** `waypoint_bridge.py` re-enables MetaDrive's
+own standard point-to-point task (a randomly generated road network with a real start point, a
+real destination, and real arrival detection — `arrive_dest_done: True`) instead of openpilot's
+stock `tools/sim` demo, which deliberately loops a fixed closed-loop track forever because it's
+built for continuous lane-keeping regression tests, not a one-shot drive.
+
+Routing to two arbitrary coordinates the user picks needs MetaDrive's navigation/route API, which
+hasn't been verified against actual MetaDrive source yet (`metadrive` is a pip dependency of
+openpilot, not vendored in this repo) — tracked as an open item below, not guessed at.
+
+## Rendering: why three.js, not Unreal
+
+Checked directly against openpilot's own source (`openpilot/tools/sim`, commit `a742df6`):
+openpilot's simulator bridge only targets **MetaDrive** (Panda3D-based). There's no Unreal
+integration to inherit. Per the project's decided direction, this viewer re-renders the sim's
+telemetry in-browser with three.js rather than chasing Unreal-grade visuals — see the root
+`README.md`'s Open Questions for the alternatives considered (CARLA/Unreal, custom renderer) and
+why this one was picked first.
+
+## Setup
+
+This follows openpilot's own documented setup (`av-sim/openpilot/tools/README.md`), developed and
+tested by comma.ai on Ubuntu 24.04; "most of openpilot should work natively on macOS" per their
+own docs — **not yet verified end-to-end on Owen's Mac in this session** (no GPU/display in the
+environment this was scaffolded from). Treat the steps below as the documented path, to be
+confirmed by actually running them.
+
+```bash
+git submodule update --init --recursive   # pulls openpilot + its own submodules (panda, opendbc, etc.)
+cd av-sim/openpilot
+tools/op.sh setup                         # openpilot's own managed dependency setup
+source .venv/bin/activate
+scons -u                                  # builds cereal's capnp bindings and native code
+cd ../..
+pip install -r av-sim/bridge/requirements.txt   # just websockets, into the same venv
+```
+
+## Running
+
+Three processes, in order:
+
+```bash
+# 1. openpilot itself
+av-sim/openpilot/tools/sim/launch_openpilot.sh
+
+# 2. the waypoint bridge (drives MetaDrive, feeds openpilot camera/CAN)
+python3 av-sim/bridge/run_waypoint_bridge.py
+
+# 3. the telemetry relay for the browser
+python3 av-sim/bridge/telemetry_server.py
+```
+
+Then open `av-sim/viewer/index.html` directly in a browser (or serve it,
+`python3 -m http.server --directory av-sim/viewer`), and it connects to
+`ws://localhost:8765`.
+
+Bridge keyboard controls (from openpilot's own `tools/sim/README.md`): press `2` then `1` to
+engage and accelerate, `s` to disengage, `r` to reset the simulation, `q` to exit.
+
+## Open items
+
+- **Arbitrary waypoint coordinates.** Current state generates a random start/destination via
+  MetaDrive's `BIG_BLOCK_NUM` map type. Real "type in A and B" needs MetaDrive's route/navigation
+  API — next step is reading `metadrive`'s own source (it's not vendored here) to find the right
+  hook, likely in its navigation module rather than `map_config`.
+- **End-to-end run not yet verified.** Written and reviewed against openpilot's actual source
+  (file paths, class names, and cereal schema fields all checked against commit `a742df6`), but
+  not yet executed — this needs a machine with the dependencies installed. Report back after a
+  real run so this note can be replaced with a verified result.
+- **Dual simulator consumers.** `waypoint_bridge.py`'s in-process vehicle state (consumed by
+  MetaDrive/openpilot directly) and `telemetry_server.py`'s cereal-bus state (consumed by the
+  browser) are two separate paths by design — worth drawing out explicitly as a course artifact
+  on "same data, two different architectural seams."

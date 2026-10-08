@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CMU SWArch AV Sim — Browser Viewer</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #111; overflow: hidden; font-family: monospace; }
+    canvas { display: block; }
+    #hud {
+      position: fixed; top: 12px; left: 12px; color: #0f0; background: rgba(0,0,0,0.5);
+      padding: 8px 12px; border-radius: 4px; white-space: pre; font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">connecting...</div>
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>
