@@ -89,9 +89,14 @@ Consumes telemetry from one or more running AV Sim instances. N-tier client/serv
 
 ### 3. Perception ML Training Pipeline
 
-Training pipeline built on openpilot's existing perception/ML components. Lets students tweak
-training inputs and parameters, then observe the resulting change in AV Sim driving behavior.
-Pipeline/blackboard-adjacent architectural style, distinct from the other two subsystems.
+**Revised from the original framing** (see `ml-pipeline/README.md` for the full reasoning):
+openpilot ships no public training code or dataset for its own driving model, only a pre-trained
+compiled artifact, so "retrain openpilot's existing ML components" isn't actually buildable.
+Instead: record driving sessions directly from the AV Sim (camera frames + applied controls),
+train a small behavior-cloning model on them, and drop the trained model back in as an
+alternative driving policy. Students tweak training inputs/parameters and observe the resulting
+change in AV Sim driving behavior — same stated goal, reachable path. Pipeline/blackboard-adjacent
+architectural style, distinct from the other two subsystems.
 
 ## Repository Layout
 
@@ -103,9 +108,10 @@ av-sim/              # AV Sim subsystem (in progress, see av-sim/README.md)
 fleet-service/        # Fleet Management Service (scaffolded + verified, see fleet-service/README.md)
   src/                # Express API + WebSocket client(s) into AV Sim telemetry
   public/             # table dashboard
+ml-pipeline/          # Perception ML Training Pipeline (scaffolded, see ml-pipeline/README.md)
+  bridge/              # recorder + trained-policy playback (touches the simulator)
+  dataset.py, model.py, train.py, policy.py   # standalone, torch-only
 ```
-
-ML training pipeline directory not yet created.
 
 ## Status
 
@@ -133,7 +139,20 @@ telemetry source emitting the real contract shape, confirmed degradation back to
 disconnect. Full detail in `fleet-service/README.md`. Not yet checked against a real running AV
 Sim, only a stand-in emitting the same JSON shape.
 
-ML training pipeline: not started.
+**Perception ML Training Pipeline scaffolded, with its design revised from the original
+proposal** after checking openpilot's actual source: no public training code/dataset exists for
+its driving model, so the pipeline instead records sessions from the AV Sim itself and trains a
+small behavior-cloning model on them (full reasoning in `ml-pipeline/README.md`). The standalone
+ML code (`dataset.py`/`model.py`/`train.py`/`policy.py`) was actually run end-to-end against a
+synthetic dataset in this session — training, checkpointing, and loading the checkpoint for
+inference all verified for real. The three files that touch the actual simulator
+(`bridge/recording_world.py`, `bridge/run_record_session.py`, `bridge/run_trained_policy.py`) are
+written and checked against openpilot/MetaDrive's real interfaces, same as AV Sim, but not yet
+run — needs a real simulator environment.
+
+All three subsystems now scaffolded. Next real step across the project: an actual run of AV Sim
+(and by extension the ML pipeline's simulator-touching pieces) on a machine with the dependencies
+installed.
 
 ## Open Questions
 

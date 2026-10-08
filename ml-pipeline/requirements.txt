@@ -1,0 +1,6 @@
+# Deliberately standalone from openpilot's own dependency set -- dataset.py, model.py, train.py,
+# and policy.py only need these. bridge/*.py (which actually talks to the simulator) need
+# av-sim's own environment on top (see av-sim/README.md).
+torch>=2.0
+numpy
+pillow

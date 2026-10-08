@@ -35,6 +35,10 @@ from openpilot.tools.sim.lib.camerad import W, H  # noqa: E402
 class WaypointMetaDriveBridge(MetaDriveBridge):
   """Drive from a generated waypoint A to a generated waypoint B and stop on arrival."""
 
+  # Overridable by subclasses (e.g. ml-pipeline's RecordingMetaDriveWorld) that need to wrap
+  # the world without duplicating the config-building below.
+  world_cls = MetaDriveWorld
+
   def __init__(self, dual_camera, high_quality, num_blocks=12, seed=None,
                test_duration=math.inf, test_run=False):
     super().__init__(dual_camera, high_quality, test_duration, test_run)
@@ -77,4 +81,4 @@ class WaypointMetaDriveBridge(MetaDriveBridge):
       "anisotropic_filtering": False,
     }
 
-    return MetaDriveWorld(queue, config, self.test_duration, self.test_run, self.dual_camera)
+    return self.world_cls(queue, config, self.test_duration, self.test_run, self.dual_camera)
