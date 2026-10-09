@@ -74,14 +74,25 @@ tools/op.sh setup                         # openpilot's own managed dependency s
 source .venv/bin/activate
 scons -u                                  # builds cereal's capnp bindings and native code
 cd ../..
-uv pip install -r av-sim/bridge/requirements.txt   # just websockets, into the same venv
+uv pip install --python av-sim/openpilot/.venv/bin/python -r av-sim/bridge/requirements.txt
 ```
 
-**Use `uv pip install`, not plain `pip install`, for that last step.** openpilot's `tools/op.sh
-setup` creates its `.venv` via `uv` (confirmed 2026-10-09 by Owen hitting `zsh: command not
-found: pip` with the venv correctly activated — `uv`-managed venvs don't ship a `pip`/`pip3`
-binary by design, only `python3`). `uv pip install` honors the currently active `$VIRTUAL_ENV`
-automatically, so run it the same way, from the `cmu-swarch` repo root.
+**Use `uv pip install --python <path>`, not plain `pip install` and not bare `uv pip install`.**
+Two real issues found running this on Owen's Mac (2026-10-09), both avoided by targeting the venv
+by explicit path instead of relying on shell activation state:
+
+- openpilot's `tools/op.sh setup` creates `.venv` via `uv`, and `uv`-managed venvs don't ship a
+  `pip`/`pip3` binary *or* the `pip` Python module by design (confirmed: both `pip install` and
+  `python -m pip install` fail there, even with the venv correctly activated) — so it has to be
+  `uv pip install`, not plain `pip`.
+- Relying on `$VIRTUAL_ENV` being active is fragile in practice: a stray top-level `.venv` (in
+  Owen's case, auto-created by VS Code's Python extension opening the folder) can shadow which
+  venv a bare `pip`/`python` command actually resolves to, especially across different terminal
+  tabs. `--python openpilot/.venv/bin/python` sidesteps all of that by naming the exact
+  interpreter directly, regardless of what's "active" in whatever shell you're in.
+
+If VS Code (or anything else) creates a `.venv` at the repo root, it's not needed — remove it to
+avoid the same confusion; the one venv that matters is `av-sim/openpilot/.venv`.
 
 ## Running
 
