@@ -1,21 +1,25 @@
 # SWArch Course Autonomous Vehicle Sim
 
-A teaching project for Carnegie Mellon's Software and Societal Systems Department, built for the
-Software Architecture course. Developed with Owen Cheng in collaboration with the course
-professor.
+A proposed teaching instrument built for Carnegie Mellon's Software and Societal Systems
+Department (S3D), Professor Garlan's Software Architecture course.  Developed by Owen Cheng in
+collaboration with the course instructors Professor David Garlan, Dr. Bradley Schmerl, and
+Dr. George Fairbanks, as well as course advisors Jonathan Aldrich, Shihong Huang, Eunsuk Kang,
+Ehab Al-Shaer, and Andres Diaz-Pace.
 
 ## Motivation
 
-We lack a software-intensive system that is complex yet lightweight enough to fit into a single
-semester course, while still teaching the real concepts of software architecture.
+The software architecture course lacks a complex software-intensive system that is lightweight yet
+rich enough to fit into a single semester course, to enable students to practice the taught
+concepts.
 
 ## Objectives
 
-1. A complex software-intensive project for architectural evaluation, rich in quality attributes.
-2. Capable of iterative refinement over the semester.
-3. Potentially supportive of more than one architectural style.
-4. Incorporates modern software development practices, ideally including use of GenAI.
-5. Shape the next decade of the architecture course as a teaching tool.
+1. Complex software-intensive project for architectural evaluation, rich in quality attributes.
+2. Designed to enable students to iterative refine over the semester.
+3. Supports more than one architectural style.
+4. Incorporates modern software development practices, including the use of Generative AI.
+5. Retroactively applicable, but also forward design available. (TODO: Reword confusing bullet.)
+6. Shapes the next decade of the software architecture course as a teaching instrument.
 
 ## The Autonomous Vehicle (AV) Sim Project
 
@@ -32,20 +36,52 @@ Source projects:
   link/name).
 
 Features to draw out as teaching artifacts:
-- Requirements
-- Design artifacts
-- ROS? (TBD whether we adopt ROS as a messaging layer, or keep openpilot's own `cereal` IPC)
-- Test cases
-
-Pitfalls to watch for:
-- What decisions led up to that architecture? Usually lost. Can it be applied retroactively?
-- (Owen's proposal left a second bullet open here — TBD.)
+- Relevant system, business, technical, and other requirements
+- Architectural models, of different styles
+- Quality attributes and tradeoffs
+- Design artifacts and their dependence and influence on architecture
+  - ROS? (TBD whether we adopt ROS as a messaging layer, or keep openpilot's own `cereal` IPC)
+- Test cases to provide signals on architectural tactics and tradeoff decisions
 
 ## Software Architecture Course Applicability
 
-- **Architectural styles:** robotic control, pipeline, N-tier client/server, blackboard.
-- **Quality attributes:** safety, performance, security, among others.
-- ...
+This section explores the applicability of the AV Sim to the course, topic by topic.
+However, there are existing system examples already in use, so a better approach is to evaluate
+what makes sense to shift to using this project as the common thread throught the course.
+
+_Note_: Mapping of topics to the Course Schedule table on the [Spring 2025 Syllabus](https://mse.s3d.cmu.edu/courses/0_syllabi/17-633882-architectures-for-software-systems-2025-syllabus.docx.pdf).
+
+- **Architectural Drivers**: in addition to technological, the business case, time-to-market,
+  regulatory policy, public trust, etc.
+- **Quality Attributes**: safety, performance, security, among others.
+- **Architectural styles**: event-driven (robotic control), dataflow (ML pipeline),
+  call return (N-tier client/server), repository (blackboard).
+- **Architectural Tactics and Frameworks**:
+  - evaluate modifiability of openpilot and our AV ecosystem built on top.
+  - evaluate compatibility and mismatch of the model training swap-in prototyped by Claude.
+- **Architecture Evaluation**: evaluate the architecture of AV Sim and its ecosystem.
+- **Architecture Documentation**: build up documentation for AV Sim.
+  - Connected to **Architecture Recovery** due to extensive existing code base.
+- **Architecture Design Records**: leverage ADR to decide next-step evolution of the AV.
+- **Architecture Modeling**: model AV Sim ecosystem in C4.
+- **Architecture Hoisting and Evident Coding**: AV Sim is rich for this exploration, but will
+  require upfront work by instructors and collaborators.
+- **Architecture as Theory Building**: TODO: George for help with whether there is applicability.
+- **Architecture and Tactics for AI**:
+  - Either front-and-center, or a side-topic: the AV Sim was initially built up and improved upon
+    using Claude.
+
+## Pitfalls and Challenges
+
+We will need to address some challenges to build up this teaching instrument.
+- How much IT and staff support resources are necessary to build this up?
+- Are instructors plus outside collaborator help sufficent to maintain this?
+
+Some pitfalls to watch out for:
+- What design choices and decisions led up to that architecture? Usually lost.
+- Can these decisions be discovered retroactively?
+- What may be time-syncs for students without adding instruction value?
+
 
 ## System Components
 
@@ -113,7 +149,7 @@ ml-pipeline/          # Perception ML Training Pipeline (scaffolded, see ml-pipe
   dataset.py, model.py, train.py, policy.py   # standalone, torch-only
 ```
 
-## Status
+## Development Status
 
 **2026-10-08 — AV Sim scaffolded, not yet run end-to-end.** Decided: browser rendering via a
 lightweight three.js viewer fed by openpilot's own telemetry (not CARLA/Unreal, not a from-scratch
