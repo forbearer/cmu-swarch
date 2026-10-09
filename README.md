@@ -71,18 +71,6 @@ _Note_: Mapping of topics to the Course Schedule table on the [Spring 2025 Sylla
   - Either front-and-center, or a side-topic: the AV Sim was initially built up and improved upon
     using Claude.
 
-## Pitfalls and Challenges
-
-We will need to address some challenges to build up this teaching instrument.
-- How much IT and staff support resources are necessary to build this up?
-- Are instructors plus outside collaborator help sufficent to maintain this?
-
-Some pitfalls to watch out for:
-- What design choices and decisions led up to that architecture? Usually lost.
-- Can these decisions be discovered retroactively?
-- What may be time-syncs for students without adding instruction value?
-
-
 ## System Components
 
 Three subsystems, each deliberately in a different architectural style, so students compare them
@@ -190,8 +178,18 @@ All three subsystems now scaffolded. Next real step across the project: an actua
 (and by extension the ML pipeline's simulator-touching pieces) on a machine with the dependencies
 installed.
 
-## Open Questions
+## Open Questions, Pitfalls, and Challenges
 
+We will need to address some challenges to build up this teaching instrument:
+- How much IT and staff support resources are necessary to build this up?
+- Are instructors plus outside collaborator help sufficent to maintain this?
+
+Some pitfalls to watch out for:
+- What design choices and decisions led up to that architecture? Usually lost.
+- Can these decisions be discovered retroactively?
+- What may be time-syncs for students without adding instruction value?
+
+Development open questions:
 - ~~Unreal-like rendering~~ **Decided 2026-10-08:** re-render MetaDrive/openpilot telemetry
   in-browser via three.js (option 1). CARLA/Unreal stays an option to revisit later if the course
   wants higher visual fidelity than this gives.
@@ -204,5 +202,3 @@ installed.
   from Owen.
 - Scope and sequencing across a single semester: which of the three subsystems do students build
   first, and which ship as instructor-provided scaffolding vs. student deliverables?
-- The proposal's two open pitfall bullets (retroactively recovering lost architectural decisions)
-  — not yet filled in.
