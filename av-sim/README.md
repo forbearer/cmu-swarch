@@ -7,23 +7,23 @@ telemetry.
 ## Architecture
 
 ```
- ┌────────────────────┐     camera frames / CAN      ┌──────────────────────┐
- │  MetaDrive (via     │ <───────────────────────────>│  openpilot            │
- │  waypoint_bridge.py)│                               │  (launch_openpilot.sh)│
- └─────────┬───────────┘                               └───────────┬──────────┘
-           │ vehicle position/state (python, in-process)            │ cereal pub/sub
-           │                                                        │ (liveLocationKalman,
-           │                                                        │  selfdriveState)
-           │                                            ┌───────────▼──────────┐
-           │                                            │  telemetry_server.py  │
-           │                                            │  (cereal subscriber,  │
-           │                                            │   WebSocket server)   │
-           │                                            └───────────┬──────────┘
-           │                                                        │ JSON over WebSocket
-           │                                            ┌───────────▼──────────┐
-           └─ (rendered to MetaDrive's own camera,       │  viewer/ (three.js,   │
-              consumed by openpilot's perception,         │  browser)             │
-              not shown to the user)                      └───────────────────────┘
+ ┌─────────────────────┐     camera frames / CAN      ┌───────────────────────┐
+ │  MetaDrive (via     │ <───────────────────────────>│ openpilot             │
+ │  waypoint_bridge.py)│                              │ (launch_openpilot.sh) │
+ └─────────┬───────────┘                              └───────────┬───────────┘
+           │ vehicle position/state (python, in-process)          │ cereal pub/sub
+           │                                                      │ (liveLocationKalman,
+           │                                                      │  selfdriveState)
+           │                                          ┌───────────▼───────────┐
+           │                                          │  telemetry_server.py  │
+           │                                          │  (cereal subscriber,  │
+           │                                          │   WebSocket server)   │
+           │                                          └───────────┬───────────┘
+           │                                                      │ JSON over WebSocket
+           │                                          ┌───────────▼───────────┐
+           └─ (rendered to MetaDrive's own camera,    │  viewer/ (three.js,   │
+              consumed by openpilot's perception,     │  browser)             │
+              not shown to the user)                  └───────────────────────┘
 ```
 
 Three pieces, three different architectural styles deliberately, matching the course's own
@@ -62,9 +62,10 @@ why this one was picked first.
 
 This follows openpilot's own documented setup (`av-sim/openpilot/tools/README.md`), developed and
 tested by comma.ai on Ubuntu 24.04; "most of openpilot should work natively on macOS" per their
-own docs — **not yet verified end-to-end on Owen's Mac in this session** (no GPU/display in the
-environment this was scaffolded from). Treat the steps below as the documented path, to be
-confirmed by actually running them.
+own docs. **Confirmed 2026-10-09 on Owen's Mac: `tools/op.sh setup` + `scons -u` complete
+successfully** (a couple of linker warnings about a jotpluggler, an unrelated dev tool that also
+gets built by `scons -u`, and about a Linux-only mesa path — both harmless, build still reports
+"done building targets").
 
 ```bash
 git submodule update --init --recursive   # pulls openpilot + its own submodules (panda, opendbc, etc.)
@@ -73,8 +74,14 @@ tools/op.sh setup                         # openpilot's own managed dependency s
 source .venv/bin/activate
 scons -u                                  # builds cereal's capnp bindings and native code
 cd ../..
-pip install -r av-sim/bridge/requirements.txt   # just websockets, into the same venv
+uv pip install -r av-sim/bridge/requirements.txt   # just websockets, into the same venv
 ```
+
+**Use `uv pip install`, not plain `pip install`, for that last step.** openpilot's `tools/op.sh
+setup` creates its `.venv` via `uv` (confirmed 2026-10-09 by Owen hitting `zsh: command not
+found: pip` with the venv correctly activated — `uv`-managed venvs don't ship a `pip`/`pip3`
+binary by design, only `python3`). `uv pip install` honors the currently active `$VIRTUAL_ENV`
+automatically, so run it the same way, from the `cmu-swarch` repo root.
 
 ## Running
 
