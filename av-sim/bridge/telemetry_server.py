@@ -8,14 +8,23 @@ own cereal message bus (messaging.SubMaster), the same mechanism tools like caba
 openpilot's own UI use to consume state. Run this as its own process, alongside
 launch_openpilot.sh and run_waypoint_bridge.py (see README.md).
 
-Fields read from cereal, verified against openpilot's cereal/log.capnp:
-- liveLocationKalman.positionGeodetic.value  -> [lat, lon, alt]
-- liveLocationKalman.orientationNED.value    -> [roll, pitch, yaw]
-- liveLocationKalman.velocityCalibrated.value -> [vx, vy, vz], vx is forward speed (m/s)
-- selfdriveState.active                      -> bool, openpilot currently in control
+Fields read from cereal, verified against openpilot's cereal/log.capnp AND against what our own
+sim actually publishes (tools/sim/lib/simulated_sensors.py's send_gps_message) -- not just the
+schema, since `liveLocationKalman` turned out to be deprecated (see below):
+- gpsLocationExternal.{latitude,longitude,altitude,speed,bearingDeg} -- the raw GPS fix our own
+  SimulatedSensors publishes every tick from MetaDrive's simulated position, directly.
+- selfdriveState.active -- bool, openpilot currently in control
+
+`liveLocationKalman` (this file's original topic choice) is marked DEPRECATED in current
+cereal/log.capnp (`liveLocationKalmanDEPRECATED`), confirmed by a real KeyError running this on
+Owen's Mac 2026-10-09: `cereal.services.SERVICE_LIST` no longer has an entry for it at all.
+locationd's modern replacement, `deviceMotion`, has no absolute position field (orientation/
+velocity/acceleration only) -- not a substitute. `gpsLocationExternal` is simpler anyway: one
+topic, no Kalman-filter warm-up needed, and it's exactly what feeds the sim's own GPS input.
 """
 import asyncio
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -26,7 +35,7 @@ sys.path.insert(0, str(OPENPILOT_ROOT))
 import websockets  # noqa: E402
 import openpilot.cereal.messaging as messaging  # noqa: E402
 
-SUBSCRIBE = ['liveLocationKalman', 'selfdriveState']
+SUBSCRIBE = ['gpsLocationExternal', 'selfdriveState']
 HZ = 20
 
 
@@ -37,15 +46,13 @@ def latest_state(sm: messaging.SubMaster) -> dict:
   if sm.valid['selfdriveState']:
     state['engaged'] = bool(sm['selfdriveState'].active)
 
-  if sm.valid['liveLocationKalman'] and sm.alive['liveLocationKalman']:
-    llk = sm['liveLocationKalman']
-    if llk.positionGeodetic.valid:
-      lat, lon, alt = llk.positionGeodetic.value
-      state['lat'], state['lon'], state['alt'] = lat, lon, alt
-    if llk.orientationNED.valid:
-      state['yaw'] = llk.orientationNED.value[2]
-    if llk.velocityCalibrated.valid:
-      state['speed'] = llk.velocityCalibrated.value[0]
+  if sm.valid['gpsLocationExternal'] and sm.alive['gpsLocationExternal']:
+    gps = sm['gpsLocationExternal']
+    state['lat'] = gps.latitude
+    state['lon'] = gps.longitude
+    state['alt'] = gps.altitude
+    state['speed'] = gps.speed
+    state['yaw'] = math.radians(gps.bearingDeg)  # viewer.js expects radians
 
   return state
 

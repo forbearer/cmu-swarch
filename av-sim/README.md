@@ -106,37 +106,36 @@ avoid the same confusion; the one venv that matters is `av-sim/openpilot/.venv`.
 
 ## Running
 
-Three **long-running, concurrent** processes — each needs its own terminal tab, not run
-sequentially in one. Each tab also needs openpilot's venv actually activated: unlike the pip
-install above, `launch_openpilot.sh` internally calls bare `python3`, so there's no dodging shell
+Four **long-running, concurrent** processes — each needs its own terminal tab, not run
+sequentially in one. Tabs 1–3 need openpilot's venv actually activated: unlike the pip install
+above, `launch_openpilot.sh` internally calls bare `python3`, so there's no dodging shell
 activation state for it the same way. All paths below are relative to the `cmu-swarch` repo root.
 
-Note the path: `av-sim/openpilot/` is this repo's submodule directory; the `openpilot/tools/sim/`
-underneath it is a second, nested `openpilot/` — the monorepo's own internal package layout
-(confirmed 2026-10-09 after Owen hit `no such file or directory` on the un-nested path).
+Note the path in tab 1: `av-sim/openpilot/` is this repo's submodule directory; the
+`openpilot/tools/sim/` underneath it is a second, nested `openpilot/` — the monorepo's own
+internal package layout (confirmed 2026-10-09 after Owen hit `no such file or directory` on the
+un-nested path).
 
 ```bash
 # tab 1 — openpilot itself
 source av-sim/openpilot/.venv/bin/activate
-LOG_ROOT="$PWD/av-sim/logs" av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
+BLOCK=ui,soundd LOG_ROOT="$PWD/av-sim/logs" av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
 ```
 
-**`LOG_ROOT` keeps driving/boot logs inside the project instead of `~/.comma`.** openpilot
-otherwise writes these under `common/hardware/hw.py`'s `Paths.comma_home()`
-(`~/.comma/media/0/realdata` on PC) — a real, supported env var override, not a workaround.
-Smaller config/state (`Params`, under `comma_home()/persist`) still goes to `~/.comma`; that's
-shared across all three tabs (e.g. the bridge sets `AlphaLongitudinalEnabled`, which
-`controlsd`/`plannerd` in other tabs need to read), so leave it alone rather than relocating it
-too — relocating it would require every tab's environment to change identically, and one
-mismatched tab would silently break that cross-process state sharing.
-
-**Expect a crash loop on the `ui` process specifically, and that's fine.** Confirmed
-2026-10-09: openpilot's native `ui` daemon (`PythonProcess("ui", ..., always_run)` — their
-on-device dashboard) tries to use D-Bus for its WiFi settings screen, which doesn't exist on
-macOS at all, so it crash-loops on a `FileNotFoundError`. That's independent of the daemons that
-actually matter here (`controlsd`/`plannerd`/`locationd`, which publish the cereal messages our
-bridge and telemetry server use) — we built our own browser viewer specifically because we don't
-use openpilot's native `ui`. To silence it: `BLOCK=ui` before `launch_openpilot.sh`.
+- **`LOG_ROOT`** keeps driving/boot logs inside the project instead of `~/.comma` (a real,
+  supported env var — `common/hardware/hw.py`'s `Paths.comma_home()`). Smaller config/state
+  (`Params`, under `comma_home()/persist`) deliberately stays in `~/.comma`: it's shared across
+  all three openpilot-facing tabs (e.g. the bridge sets `AlphaLongitudinalEnabled`, which
+  `controlsd`/`plannerd` need to read), and relocating it needs every tab's environment to match
+  exactly or that sharing silently breaks.
+- **`BLOCK=ui,soundd`** — confirmed 2026-10-09, both are openpilot's own native on-device UI
+  components, not something we use (we built our own browser viewer instead): `ui`
+  (`PythonProcess("ui", ..., always_run)`) tries to use D-Bus for its WiFi settings screen, which
+  doesn't exist on macOS, so it crash-loops with a `FileNotFoundError`; it also opens a
+  non-resizable, fixed-size raylib window sized for comma's own touchscreen hardware, not a
+  desktop. `soundd` plays real alert audio (`selfdrive/ui/soundd.py`, up to full volume) through
+  your actual speakers — also built for real-car alerts, not needed here. Blocking both is
+  harmless to `controlsd`/`plannerd`/`locationd`, the daemons that actually matter for this sim.
 
 ```bash
 # tab 2 — the waypoint bridge (drives MetaDrive, feeds openpilot camera/CAN)
@@ -150,9 +149,14 @@ source av-sim/openpilot/.venv/bin/activate
 python3 av-sim/bridge/telemetry_server.py
 ```
 
-Then open `av-sim/viewer/index.html` directly in a browser (or serve it,
-`python3 -m http.server --directory av-sim/viewer`), and it connects to
-`ws://localhost:8765`.
+```bash
+# tab 4 — serve the browser viewer
+python3 -m http.server --directory av-sim/viewer
+```
+
+Then open the viewer in a browser (the URL `http.server` prints, e.g. `http://localhost:8000`) —
+it connects to `ws://localhost:8765`. Opening `av-sim/viewer/index.html` as a plain `file://` URL
+also works and skips tab 4 entirely, if you don't need it served.
 
 Bridge keyboard controls (from openpilot's own `tools/sim/README.md`): press `2` then `1` to
 engage and accelerate, `s` to disengage, `r` to reset the simulation, `q` to exit.
@@ -164,12 +168,17 @@ engage and accelerate, `s` to disengage, `r` to reset the simulation, `q` to exi
   API — next step is reading `metadrive`'s own source (it's not vendored here) to find the right
   hook, likely in its navigation module rather than `map_config`.
 - **End-to-end run in progress on Owen's Mac (2026-10-09), real bugs found and fixed along the
-  way:** `tools/op.sh setup` + `scons -u` succeed; openpilot's own `ui` process crash-loops on
-  macOS (harmless, see above); `metadrive-simulator` needed installing manually (commented out
-  upstream, see Setup); a `start_seed=None` bug in our own `waypoint_bridge.py` crashed MetaDrive's
-  map manager, now fixed (fell back to MetaDrive's own default of `0` instead of passing `None`
-  through). MetaDrive itself now spawns, downloads its assets, and builds a world. Not yet
-  confirmed: openpilot actually engaging and driving it, and the telemetry/viewer leg.
+  way:** `tools/op.sh setup` + `scons -u` succeed; openpilot's own `ui`/`soundd` processes
+  blocked (harmless, built for real-car hardware, see Running); `metadrive-simulator` needed
+  installing manually (commented out upstream, see Setup); a `start_seed=None` bug in our own
+  `waypoint_bridge.py` crashed MetaDrive's map manager, fixed (fell back to MetaDrive's own
+  default of `0`); `telemetry_server.py` subscribed to `liveLocationKalman`, which turned out to
+  be deprecated at this commit (confirmed via a real `KeyError` in `cereal.services.SERVICE_LIST`)
+  — switched to `gpsLocationExternal`, the raw GPS topic our own sim actually publishes, which
+  turned out simpler anyway (lat/lon/alt/speed/bearing all in one topic, no Kalman-filter warm-up
+  needed). MetaDrive spawns, downloads its assets, builds a world, and the browser viewer loads.
+  Not yet confirmed: openpilot actually engaging and driving the car, and live telemetry actually
+  reaching the browser (viewer loading successfully isn't the same as it receiving real data).
 - **Dual simulator consumers.** `waypoint_bridge.py`'s in-process vehicle state (consumed by
   MetaDrive/openpilot directly) and `telemetry_server.py`'s cereal-bus state (consumed by the
   browser) are two separate paths by design — worth drawing out explicitly as a course artifact
