@@ -4,3 +4,7 @@
 
 # Relocated openpilot LOG_ROOT (see av-sim/README.md) -- driving/boot logs, not source.
 /av-sim/logs/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
