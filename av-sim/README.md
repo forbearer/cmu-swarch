@@ -96,16 +96,30 @@ avoid the same confusion; the one venv that matters is `av-sim/openpilot/.venv`.
 
 ## Running
 
-Three processes, in order:
+Three **long-running, concurrent** processes — each needs its own terminal tab, not run
+sequentially in one. Each tab also needs openpilot's venv actually activated: unlike the pip
+install above, `launch_openpilot.sh` internally calls bare `python3`, so there's no dodging shell
+activation state for it the same way. All paths below are relative to the `cmu-swarch` repo root.
+
+Note the path: `av-sim/openpilot/` is this repo's submodule directory; the `openpilot/tools/sim/`
+underneath it is a second, nested `openpilot/` — the monorepo's own internal package layout
+(confirmed 2026-10-09 after Owen hit `no such file or directory` on the un-nested path).
 
 ```bash
-# 1. openpilot itself
-av-sim/openpilot/tools/sim/launch_openpilot.sh
+# tab 1 — openpilot itself
+source av-sim/openpilot/.venv/bin/activate
+av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
+```
 
-# 2. the waypoint bridge (drives MetaDrive, feeds openpilot camera/CAN)
+```bash
+# tab 2 — the waypoint bridge (drives MetaDrive, feeds openpilot camera/CAN)
+source av-sim/openpilot/.venv/bin/activate
 python3 av-sim/bridge/run_waypoint_bridge.py
+```
 
-# 3. the telemetry relay for the browser
+```bash
+# tab 3 — the telemetry relay for the browser
+source av-sim/openpilot/.venv/bin/activate
 python3 av-sim/bridge/telemetry_server.py
 ```
 
