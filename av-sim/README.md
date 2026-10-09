@@ -118,8 +118,17 @@ underneath it is a second, nested `openpilot/` — the monorepo's own internal p
 ```bash
 # tab 1 — openpilot itself
 source av-sim/openpilot/.venv/bin/activate
-av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
+LOG_ROOT="$PWD/av-sim/logs" av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
 ```
+
+**`LOG_ROOT` keeps driving/boot logs inside the project instead of `~/.comma`.** openpilot
+otherwise writes these under `common/hardware/hw.py`'s `Paths.comma_home()`
+(`~/.comma/media/0/realdata` on PC) — a real, supported env var override, not a workaround.
+Smaller config/state (`Params`, under `comma_home()/persist`) still goes to `~/.comma`; that's
+shared across all three tabs (e.g. the bridge sets `AlphaLongitudinalEnabled`, which
+`controlsd`/`plannerd` in other tabs need to read), so leave it alone rather than relocating it
+too — relocating it would require every tab's environment to change identically, and one
+mismatched tab would silently break that cross-process state sharing.
 
 **Expect a crash loop on the `ui` process specifically, and that's fine.** Confirmed
 2026-10-09: openpilot's native `ui` daemon (`PythonProcess("ui", ..., always_run)` — their

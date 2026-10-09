@@ -1,0 +1,6 @@
+# Stray venv some tools (e.g. VS Code's Python extension) like to auto-create at the repo root --
+# the one that matters is av-sim/openpilot/.venv, created by that submodule's own tools/op.sh setup.
+/.venv/
+
+# Relocated openpilot LOG_ROOT (see av-sim/README.md) -- driving/boot logs, not source.
+/av-sim/logs/
