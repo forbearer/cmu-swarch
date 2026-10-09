@@ -158,8 +158,30 @@ Then open the viewer in a browser (the URL `http.server` prints, e.g. `http://lo
 it connects to `ws://localhost:8765`. Opening `av-sim/viewer/index.html` as a plain `file://` URL
 also works and skips tab 4 entirely, if you don't need it served.
 
-Bridge keyboard controls (from openpilot's own `tools/sim/README.md`): press `2` then `1` to
-engage and accelerate, `s` to disengage, `r` to reset the simulation, `q` to exit.
+![Browser viewer showing an engaged, moving vehicle](docs/viewer-screenshot.png)
+
+Confirmed working end-to-end 2026-10-09: `status: ENGAGED`, live `speed`/`x`/`z` updating as the
+car drives, exactly like the screenshot above.
+
+### Driving the car (tab 2's terminal, not the browser)
+
+**Controls go into tab 2's terminal window specifically — click into it and type there.**
+Confirmed 2026-10-09: `run_waypoint_bridge.py` reads raw keystrokes directly off that terminal's
+stdin (`openpilot/tools/sim/lib/keyboard_ctrl.py`, via `termios`), so the keyboard help table it
+prints on startup is not decorative — the browser tab has no way to send input at all.
+
+| key    | functionality                |
+|--------|-------------------------------|
+| `2`,`1`| **Engage**: Cruise Set, then Cruise Resume/Accel |
+| `3`    | Cruise Cancel (disengage)     |
+| `w a s d` | Manual throttle/steer/brake (works whether engaged or not) |
+| `i`    | Toggle ignition               |
+| `r`    | Reset simulation              |
+| `q`    | Exit                           |
+
+Quick sanity check if nothing seems to respond: press `w` first — if speed/x/z start moving in
+the browser, input is reaching the bridge fine and it's just a matter of engaging (`2` then `1`).
+If `w` does nothing either, that's a focus/input problem, not an engagement one.
 
 ## Open items
 
