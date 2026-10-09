@@ -75,7 +75,17 @@ source .venv/bin/activate
 scons -u                                  # builds cereal's capnp bindings and native code
 cd ../..
 uv pip install --python av-sim/openpilot/.venv/bin/python -r av-sim/bridge/requirements.txt
+uv pip install --python av-sim/openpilot/.venv/bin/python "metadrive-simulator @ git+https://github.com/commaai/metadrive.git@minimal"
 ```
+
+**That last line is required and not part of openpilot's own documented setup.** Checked
+directly: at the commit we pinned (`a742df6`), openpilot's own `pyproject.toml` has
+`metadrive-simulator` commented out in its `tools` optional-dependency group, with their own note
+"this can be added back once it's stripped down some more" — so `tools/op.sh setup` never
+installs it, on any platform, regardless of extras selected. The code that uses it
+(`metadrive_bridge.py`, our `waypoint_bridge.py`) is all still there and works once the package is
+installed manually — confirmed 2026-10-09 on Owen's Mac, including the asset download MetaDrive
+does on first run (`assets.zip` from comma's own GitHub releases).
 
 **Use `uv pip install --python <path>`, not plain `pip install` and not bare `uv pip install`.**
 Two real issues found running this on Owen's Mac (2026-10-09), both avoided by targeting the venv
@@ -111,6 +121,14 @@ source av-sim/openpilot/.venv/bin/activate
 av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
 ```
 
+**Expect a crash loop on the `ui` process specifically, and that's fine.** Confirmed
+2026-10-09: openpilot's native `ui` daemon (`PythonProcess("ui", ..., always_run)` — their
+on-device dashboard) tries to use D-Bus for its WiFi settings screen, which doesn't exist on
+macOS at all, so it crash-loops on a `FileNotFoundError`. That's independent of the daemons that
+actually matter here (`controlsd`/`plannerd`/`locationd`, which publish the cereal messages our
+bridge and telemetry server use) — we built our own browser viewer specifically because we don't
+use openpilot's native `ui`. To silence it: `BLOCK=ui` before `launch_openpilot.sh`.
+
 ```bash
 # tab 2 — the waypoint bridge (drives MetaDrive, feeds openpilot camera/CAN)
 source av-sim/openpilot/.venv/bin/activate
@@ -136,10 +154,13 @@ engage and accelerate, `s` to disengage, `r` to reset the simulation, `q` to exi
   MetaDrive's `BIG_BLOCK_NUM` map type. Real "type in A and B" needs MetaDrive's route/navigation
   API — next step is reading `metadrive`'s own source (it's not vendored here) to find the right
   hook, likely in its navigation module rather than `map_config`.
-- **End-to-end run not yet verified.** Written and reviewed against openpilot's actual source
-  (file paths, class names, and cereal schema fields all checked against commit `a742df6`), but
-  not yet executed — this needs a machine with the dependencies installed. Report back after a
-  real run so this note can be replaced with a verified result.
+- **End-to-end run in progress on Owen's Mac (2026-10-09), real bugs found and fixed along the
+  way:** `tools/op.sh setup` + `scons -u` succeed; openpilot's own `ui` process crash-loops on
+  macOS (harmless, see above); `metadrive-simulator` needed installing manually (commented out
+  upstream, see Setup); a `start_seed=None` bug in our own `waypoint_bridge.py` crashed MetaDrive's
+  map manager, now fixed (fell back to MetaDrive's own default of `0` instead of passing `None`
+  through). MetaDrive itself now spawns, downloads its assets, and builds a world. Not yet
+  confirmed: openpilot actually engaging and driving it, and the telemetry/viewer leg.
 - **Dual simulator consumers.** `waypoint_bridge.py`'s in-process vehicle state (consumed by
   MetaDrive/openpilot directly) and `telemetry_server.py`'s cereal-bus state (consumed by the
   browser) are two separate paths by design — worth drawing out explicitly as a course artifact
