@@ -43,7 +43,11 @@ class WaypointMetaDriveBridge(MetaDriveBridge):
                test_duration=math.inf, test_run=False):
     super().__init__(dual_camera, high_quality, test_duration, test_run)
     self.num_blocks = num_blocks
-    self.seed = seed
+    # MetaDrive's own default is start_seed=0 (metadrive/envs/metadrive_env.py); passing None
+    # through unchanged breaks arithmetic deep inside PGMapManager (start_seed + env_num).
+    # seed=None here means "no specific seed requested", so fall back to MetaDrive's own default
+    # instead of overriding it with None.
+    self.seed = seed if seed is not None else 0
 
   def spawn_world(self, queue: Queue):
     sensors = {
