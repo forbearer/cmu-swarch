@@ -135,6 +135,8 @@ fleet-service/        # Fleet Management Service (scaffolded + verified, see fle
 ml-pipeline/          # Perception ML Training Pipeline (scaffolded, see ml-pipeline/README.md)
   bridge/              # recorder + trained-policy playback (touches the simulator)
   dataset.py, model.py, train.py, policy.py   # standalone, torch-only
+assignments/          # self-contained scenarios built on the above, kept separate so each can
+                       # be assigned/graded independently (see assignments/README.md)
 ```
 
 ## Development Status

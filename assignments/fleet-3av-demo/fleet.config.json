@@ -1,0 +1,7 @@
+{
+  "vehicles": [
+    { "id": "av-1", "name": "Loop Route (driving)", "wsUrl": "ws://localhost:8765" },
+    { "id": "av-2", "name": "Parked (idle)", "wsUrl": "ws://localhost:8766" },
+    { "id": "av-3", "name": "Flaky Connection (offline after 15s)", "wsUrl": "ws://localhost:8767" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "cmu-swarch-fleet-3av-demo",
+  "version": "0.1.0",
+  "description": "Three mock AV telemetry sources for illustrating the Fleet Management Service.",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
