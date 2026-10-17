@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 460" font-family="Menlo, Consolas, monospace">
+<rect width="1560" height="460" fill="#ffffff"/>
+<text x="780.0" y="36" text-anchor="middle" font-size="20" font-weight="bold" fill="#1a1a1a">Fleet Management Service — Component-and-Connector View</text>
+<defs>
+<marker id="arrow-ProcedureCallConnector" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2b2b2b"/></marker>
+<marker id="arrow-PublishSubscribeConnector" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f6feb"/></marker>
+<marker id="arrow-StreamConnector" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/></marker>
+<marker id="arrow-RepositoryConnector" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/></marker>
+<marker id="arrow-RequestReplyConnector" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#bf8700"/></marker>
+</defs>
+<path d="M260,145.0 L370,145.0" fill="none" stroke="#1a7f37" stroke-width="2.5" stroke-dasharray="none" marker-end="url(#arrow-StreamConnector)"/>
+<rect x="268.1" y="121.0" width="93.8" height="18" fill="#ffffff" opacity="0.9"/>
+<text x="315.0" y="135.0" text-anchor="middle" font-size="12" fill="#1a7f37">telemetryFeed</text>
+<path d="M570,145.0 L680,145.0" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-dasharray="none" marker-end="url(#arrow-ProcedureCallConnector)"/>
+<rect x="601.2" y="121.0" width="47.599999999999994" height="18" fill="#ffffff" opacity="0.9"/>
+<text x="625.0" y="135.0" text-anchor="middle" font-size="12" fill="#2b2b2b">ingest</text>
+<path d="M880,145.0 L990,145.0" fill="none" stroke="#2b2b2b" stroke-width="2.5" stroke-dasharray="none" marker-end="url(#arrow-ProcedureCallConnector)"/>
+<rect x="914.5" y="121.0" width="41.0" height="18" fill="#ffffff" opacity="0.9"/>
+<text x="935.0" y="135.0" text-anchor="middle" font-size="12" fill="#2b2b2b">query</text>
+<path d="M1190,145.0 L1300,145.0" fill="none" stroke="#bf8700" stroke-width="2.5" stroke-dasharray="none" marker-end="url(#arrow-RequestReplyConnector)"/>
+<rect x="1198.1" y="121.0" width="93.8" height="18" fill="#ffffff" opacity="0.9"/>
+<text x="1245.0" y="135.0" text-anchor="middle" font-size="12" fill="#bf8700">dashboardFeed</text>
+<rect x="60" y="90" width="200" height="110" rx="6" fill="#f6f8fa" stroke="#1a1a1a" stroke-width="2"/>
+<text x="160.0" y="114" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a1a">AVTelemetrySource</text>
+<text x="160.0" y="134" text-anchor="middle" font-size="10" fill="#57606a">external: AV Sim or mock</text>
+<text x="160.0" y="148" text-anchor="middle" font-size="10" fill="#57606a">(assignments/fleet-3av-demo/)</text>
+<rect x="255.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<rect x="370" y="90" width="200" height="110" rx="6" fill="#f6f8fa" stroke="#1a1a1a" stroke-width="2"/>
+<text x="470.0" y="114" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a1a">AVConnector</text>
+<text x="470.0" y="134" text-anchor="middle" font-size="10" fill="#57606a">avConnector.js (WS</text>
+<text x="470.0" y="148" text-anchor="middle" font-size="10" fill="#57606a">client, auto-reconnect)</text>
+<rect x="365.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<rect x="565.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<rect x="680" y="90" width="200" height="110" rx="6" fill="#f6f8fa" stroke="#1a1a1a" stroke-width="2"/>
+<text x="780.0" y="114" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a1a">FleetStore</text>
+<text x="780.0" y="134" text-anchor="middle" font-size="10" fill="#57606a">fleetStore.js</text>
+<text x="780.0" y="148" text-anchor="middle" font-size="10" fill="#57606a">(in-memory, derives</text>
+<text x="780.0" y="162" text-anchor="middle" font-size="10" fill="#57606a">status)</text>
+<rect x="675.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<rect x="875.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<rect x="990" y="90" width="200" height="110" rx="6" fill="#f6f8fa" stroke="#1a1a1a" stroke-width="2"/>
+<text x="1090.0" y="114" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a1a">ExpressAPI</text>
+<text x="1090.0" y="134" text-anchor="middle" font-size="10" fill="#57606a">server.js (/api/fleet,</text>
+<text x="1090.0" y="148" text-anchor="middle" font-size="10" fill="#57606a">/api/fleet/:id)</text>
+<rect x="985.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<rect x="1185.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<rect x="1300" y="90" width="200" height="110" rx="6" fill="#f6f8fa" stroke="#1a1a1a" stroke-width="2"/>
+<text x="1400.0" y="114" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a1a">Dashboard</text>
+<text x="1400.0" y="134" text-anchor="middle" font-size="10" fill="#57606a">public/index.html (polls</text>
+<text x="1400.0" y="148" text-anchor="middle" font-size="10" fill="#57606a">1Hz)</text>
+<rect x="1295.0" y="140.0" width="10" height="10" fill="#1a1a1a"/>
+<text x="60" y="310" font-size="13" font-weight="bold" fill="#1a1a1a">Connector types (Garlan C&amp;C style)</text>
+<line x1="60" y1="332" x2="100" y2="332" stroke="#2b2b2b" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="110" y="336" font-size="12" fill="#1a1a1a">ProcedureCallConnector &#8212; procedure call</text>
+<line x1="60" y1="352" x2="100" y2="352" stroke="#1a7f37" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="110" y="356" font-size="12" fill="#1a1a1a">StreamConnector &#8212; event stream (WebSocket)</text>
+<line x1="60" y1="372" x2="100" y2="372" stroke="#bf8700" stroke-width="2.5" stroke-dasharray="none"/>
+<text x="110" y="376" font-size="12" fill="#1a1a1a">RequestReplyConnector &#8212; request-reply (HTTP)</text>
+</svg>

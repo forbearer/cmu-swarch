@@ -137,6 +137,8 @@ ml-pipeline/          # Perception ML Training Pipeline (scaffolded, see ml-pipe
   dataset.py, model.py, train.py, policy.py   # standalone, torch-only
 assignments/          # self-contained scenarios built on the above, kept separate so each can
                        # be assigned/graded independently (see assignments/README.md)
+architecture/         # Garlan-style C&C models in real SysML v2, + matching SVGs
+                       # (see architecture/README.md)
 ```
 
 ## Development Status
