@@ -106,7 +106,43 @@ avoid the same confusion; the one venv that matters is `av-sim/openpilot/.venv`.
 
 ## Running
 
-Four **long-running, concurrent** processes — each needs its own terminal tab, not run
+### One command: `run_demo.sh`
+
+```bash
+av-sim/run_demo.sh            # optional: pass bridge args, e.g. --seed 7
+```
+
+Starts everything below in the right order, in one terminal: openpilot **with its own native UI**
+(`BIG=1`), the telemetry relay, the viewer's static server (and opens it in your browser), then
+the waypoint bridge in the foreground. Keep that terminal focused — it is where the driving keys
+go (see "Driving the car"). Press `q` or Ctrl-C and the script tears every process down. Per-process
+output goes to `av-sim/logs/{openpilot,telemetry,viewer}.out`. Env overrides: `VIEWER_PORT`,
+`WS_PORT`, `OPENPILOT_WARMUP`, `NO_BROWSER=1`, and `BIG` / `BLOCK` (see below).
+
+### How the native UI and the browser viewer fit together
+
+They are **two independent consumers of the same live session, not two modes you pick between**,
+and nothing needs to be wired between them:
+
+- openpilot's native UI is just the `ui` process that openpilot's own manager spawns when
+  `launch_openpilot.sh` starts. It reads the cereal bus (and the camera frames the bridge
+  publishes over VisionIPC) exactly like `telemetry_server.py` does — same bus, same MetaDrive
+  session, same moment. Only `waypoint_bridge.py` produces data; both viewers just subscribe.
+- The reason the UI looked broken before is a one-variable layout switch: without `BIG=1`,
+  openpilot falls back to a tiny stripped-down layout meant for comma's own device (`PC` hardware,
+  which a Mac reports as, isn't in the "big screen" list). `BIG=1` selects the full onroad UI,
+  auto-scaled to your monitor. No code change.
+- So the old `BLOCK=ui,soundd` is no longer needed — only `soundd` stays blocked (it plays loud
+  real-car alert audio through your speakers). The older claim here that `ui` "crash-loops on
+  macOS" over D-Bus was a misdiagnosis (that failure is caught and logged, not fatal).
+- The native UI needs a real desktop session: it opens a GUI window (raylib/GLFW). Over SSH, a
+  locked screen, or another user's active console session it cannot find a monitor and the `ui`
+  process exits (`GLFW: Failed to determine Monitor`) while everything else keeps running. If you
+  don't want it, `BLOCK=ui,soundd av-sim/run_demo.sh` runs the browser-only setup.
+
+### Manual: four terminals
+
+If you'd rather see each piece, `run_demo.sh` is just these four **long-running, concurrent** processes — each needs its own terminal tab, not run
 sequentially in one. Tabs 1–3 need openpilot's venv actually activated: unlike the pip install
 above, `launch_openpilot.sh` internally calls bare `python3`, so there's no dodging shell
 activation state for it the same way. All paths below are relative to the `cmu-swarch` repo root.
@@ -119,7 +155,7 @@ un-nested path).
 ```bash
 # tab 1 — openpilot itself
 source av-sim/openpilot/.venv/bin/activate
-BLOCK=ui,soundd LOG_ROOT="$PWD/av-sim/logs" av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
+BIG=1 BLOCK=soundd LOG_ROOT="$PWD/av-sim/logs" av-sim/openpilot/openpilot/tools/sim/launch_openpilot.sh
 ```
 
 - **`LOG_ROOT`** keeps driving/boot logs inside the project instead of `~/.comma` (a real,
@@ -128,14 +164,14 @@ BLOCK=ui,soundd LOG_ROOT="$PWD/av-sim/logs" av-sim/openpilot/openpilot/tools/sim
   all three openpilot-facing tabs (e.g. the bridge sets `AlphaLongitudinalEnabled`, which
   `controlsd`/`plannerd` need to read), and relocating it needs every tab's environment to match
   exactly or that sharing silently breaks.
-- **`BLOCK=ui,soundd`** — confirmed 2026-10-09, both are openpilot's own native on-device UI
-  components, not something we use (we built our own browser viewer instead): `ui`
-  (`PythonProcess("ui", ..., always_run)`) tries to use D-Bus for its WiFi settings screen, which
-  doesn't exist on macOS, so it crash-loops with a `FileNotFoundError`; it also opens a
-  non-resizable, fixed-size raylib window sized for comma's own touchscreen hardware, not a
-  desktop. `soundd` plays real alert audio (`selfdrive/ui/soundd.py`, up to full volume) through
-  your actual speakers — also built for real-car alerts, not needed here. Blocking both is
-  harmless to `controlsd`/`plannerd`/`locationd`, the daemons that actually matter for this sim.
+- **`BIG=1`** — selects openpilot's full native UI layout instead of the tiny device-sized one
+  (see "How the native UI and the browser viewer fit together" above). Confirmed working on
+  Owen's Mac 2026-10-19.
+- **`BLOCK=soundd`** — `soundd` plays real alert audio (`selfdrive/ui/soundd.py`, up to full
+  volume) through your actual speakers; built for real-car alerts, not needed here. Blocking it
+  is harmless to `controlsd`/`plannerd`/`locationd`, the daemons that actually matter for this
+  sim. (Earlier versions of this README also blocked `ui`; that is only needed now if you have
+  no desktop session to show its window on.)
 
 ```bash
 # tab 2 — the waypoint bridge (drives MetaDrive, feeds openpilot camera/CAN)
@@ -183,8 +219,27 @@ Quick sanity check if nothing seems to respond: press `w` first — if speed/x/z
 the browser, input is reaching the bridge fine and it's just a matter of engaging (`2` then `1`).
 If `w` does nothing either, that's a focus/input problem, not an engagement one.
 
+## Verification status of the combined run (2026-10-23)
+
+`run_demo.sh` was run end-to-end from a headless automation session on Owen's Mac. Verified:
+one command brings up the openpilot manager (with `ui` as a managed child), telemetry relay,
+viewer server and waypoint bridge; the relay streamed live MetaDrive GPS state (lat/lon/speed at
+~20 Hz) off the same cereal bus the other processes use; the viewer server answered HTTP 200;
+the native `ui` process stayed alive for 6+ minutes emitting its own render-loop output; the
+bridge's keyboard input (ignition toggle) reached MetaDrive; Ctrl-C left no orphaned processes.
+
+**Not verified:** (1) any visual confirmation of the native UI window — no screen access from
+that session, and a later run's `ui` could not open a window at all (no monitor reachable from
+that session, `GLFW: Failed to determine Monitor`); (2) openpilot actually **engaging** in that
+session — `selfdriveState.engageable` stayed false with a `selfdrivedLagging` onroad event, and
+it did so identically with the UI blocked (`BIG=0 BLOCK=ui,soundd`, i.e. the 2026-10-09 working
+configuration), so it is not caused by the native UI; the host was also heavily shared and
+CPU-contended at the time. Re-confirm engagement and the UI picture on a quiet, logged-in desktop.
+
 ## Open items
 
+- **Combined native-UI + browser-viewer run needs one confirmation on a quiet desktop** — see
+  "Verification status" above (visual UI check and engagement).
 - **Arbitrary waypoint coordinates.** Current state generates a random start/destination via
   MetaDrive's `BIG_BLOCK_NUM` map type. Real "type in A and B" needs MetaDrive's route/navigation
   API — next step is reading `metadrive`'s own source (it's not vendored here) to find the right

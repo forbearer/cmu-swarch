@@ -127,6 +127,7 @@ architectural style, distinct from the other two subsystems.
 ```
 av-sim/              # AV Sim subsystem (in progress, see av-sim/README.md)
   openpilot/          # git submodule: commaai/openpilot, pinned
+  run_demo.sh         # one-command launcher: openpilot + native UI, bridge, telemetry, viewer
   bridge/             # waypoint-driving bridge + telemetry WebSocket server
   viewer/             # browser viewer (three.js, no build step)
 fleet-service/        # Fleet Management Service (scaffolded + verified, see fleet-service/README.md)
@@ -178,6 +179,10 @@ inference all verified for real. The three files that touch the actual simulator
 written and checked against openpilot/MetaDrive's real interfaces, same as AV Sim, but not yet
 run — needs a real simulator environment.
 
+**2026-10-23 — native openpilot UI paired with the rest of AV Sim.** `av-sim/run_demo.sh` starts
+openpilot (with its own native UI via `BIG=1`), the telemetry relay, the viewer and the waypoint
+bridge from one terminal; see `av-sim/README.md`.
+
 All three subsystems now scaffolded. Next real step across the project: an actual run of AV Sim
 (and by extension the ML pipeline's simulator-touching pieces) on a machine with the dependencies
 installed.
@@ -197,6 +202,14 @@ Development open questions:
 - ~~Unreal-like rendering~~ **Decided 2026-10-08:** re-render MetaDrive/openpilot telemetry
   in-browser via three.js (option 1). CARLA/Unreal stays an option to revisit later if the course
   wants higher visual fidelity than this gives.
+- ~~Pairing openpilot's native UI with the waypoint bridge / telemetry / browser viewer~~
+  **Resolved 2026-10-23 (no new wiring needed):** the native UI is the `ui` process openpilot's own
+  manager already spawns, and is a second subscriber on the same cereal bus as the telemetry
+  server — so it and the browser viewer are independent views of one session. It just needs
+  `BIG=1` (the earlier "UI crashes on macOS" diagnosis was wrong). `av-sim/run_demo.sh` launches
+  everything together; see `av-sim/README.md`. Still to confirm once on a quiet, logged-in
+  desktop: a visual check of the UI window and openpilot engagement (`av-sim/README.md`,
+  "Verification status").
 - Arbitrary waypoint coordinates (student types in A and B) vs. MetaDrive's own randomly
   generated start/destination (what's implemented now) — needs MetaDrive's navigation/route API,
   not yet looked into.
