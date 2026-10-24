@@ -219,6 +219,94 @@ Quick sanity check if nothing seems to respond: press `w` first — if speed/x/z
 the browser, input is reaching the bridge fine and it's just a matter of engaging (`2` then `1`).
 If `w` does nothing either, that's a focus/input problem, not an engagement one.
 
+## Staying engaged on a laptop (the "System Lagging" disengage)
+
+On a stock checkout on a Mac, openpilot engages and then immediately disengages with
+**"TAKE CONTROL IMMEDIATELY — System Lagging"** (`selfdrivedLagging`). That was not host CPU load
+(it persisted with the UI blocked and the machine idle). Measured on an Apple M3 (8 cores), it
+was two independent timing problems, each fixed by a small, documented change that `run_demo.sh`
+applies for you. Diagnose either one yourself with `bridge/lag_probe.py` (below).
+
+**What `lagging` actually means.** `selfdrived.py` adds `selfdrivedLagging` whenever its own
+`Ratekeeper` says its loop averaged slower than 90 Hz (`common/realtime.py`: lagging when the
+100-sample average period exceeds `interval / 0.9` = 11.1 ms). `selfdrivedLagging` is both a
+soft-disable and a no-entry event, so it disengages you and blocks re-engaging. The check is
+`not REPLAY`-gated but, unlike the camera checks beside it, *not* `SIMULATION`-gated.
+Setting `REPLAY` would skip it, but `REPLAY` means "replaying a recorded route", not "relaxed
+timing": it also skips the cruise-mismatch check, *re-enables* checks that `SIMULATION` relaxes
+(`paramsdTemporaryError`, `modeldLagging`, the startup wait for valid inputs), force-enables the
+state machine from the panda's `controlsAllowed`, and makes `card` timestamp actuation from the
+CAN log instead of the monotonic clock. That is the wrong switch for a live sim, so we fix the
+cause instead of silencing the check.
+
+**Cause 1 — macOS message-queue wakeups (fixed by a patch).** `selfdrived` is paced by `carState`,
+which `card` publishes once per drain of the CAN socket. msgq blocks receivers on Linux with a
+signal-interruptible sleep, but macOS signals can't interrupt `nanosleep`, so upstream's macOS
+branch (`msgq/msgq.cc`, `msgq_poll`) polls in **10 ms** slices. Every blocking receiver then
+wakes on a ~10 ms grid, so although the bridge sent CAN at a steady 100 Hz, `carState` only came
+out at **80–90 Hz** — just under the 90 Hz line, in every one of 40 sampled seconds.
+`av-sim/patches/msgq-macos-poll-1ms.patch` changes the slice to 1 ms (`carState` → 99–101 Hz,
+`selfdrivedLagging` → 0 s). It only touches the `#ifdef __APPLE__` branch. `apply_patches.sh`
+applies it to the pinned `msgq_repo` submodule and rebuilds (`scons -u`, ~30 s, once);
+`run_demo.sh` calls it every start, so `git submodule update` resetting the submodule is
+self-healing. Expect `git status` to show `av-sim/openpilot` as modified content — that is the
+patch.
+
+**Cause 2 — the driving model is slower than the camera (fixed by a lower camera rate).** With
+cause 1 fixed, the car engaged but flapped in and out of soft-disable (`commIssue`,
+`locationdTemporaryError`). modeld on a Mac runs the *small* model on the Apple GPU (METAL); the
+"big model" path is gated on the external AMD "chestnut" GPU and is never used here, so there is
+no cheaper model to select. Standalone, one model step takes **~60 ms** (59.6 ms mean, paced or
+flat out, nothing else running) — a 20 Hz camera needs 50 ms, so the model tops out around
+16.7 Hz and drops ~1 frame in 6 (`frameDropPerc` ≈ 20 %). modeld marks `cameraOdometry` invalid on
+*any* dropped frame (`vipc_dropped_frames < 1`), which cascades through locationd, calibrationd,
+lagd and paramsd into a soft-disable. So `waypoint_bridge.py` sends the camera at **15 Hz**
+(`SIM_CAMERA_HZ`, default 15; stock is 20): evenly spaced, none dropped (0.0 % drop, `modelV2`
+15 Hz). The trade-off is real: the model sees frames 66 ms apart instead of the 50 ms it was
+trained on. Steering/speed behaved sensibly in testing, but treat the sim's driving quality as
+"good enough to demo", not as validation of openpilot.
+
+**Measured** (headless, `BLOCK=soundd,ui`, M3, 1-second samples from `lag_probe.py`):
+
+| | `carState` | `modelV2` | frame drop | `selfdrivedLagging` | engaged |
+|---|---|---|---|---|---|
+| stock | 80–90 Hz | 10 Hz | — | 40 / 40 s | 0 s |
+| msgq patch only | 100 Hz | 16 Hz | ~20 % | 0 / 45 s | 12 / 45 s (flapping) |
+| patch + 15 Hz camera, seed 7 | 100 Hz | 15 Hz | 0.0 % | 0 s while sim alive | 56 s (all of it) |
+| patch + 15 Hz camera, seed 3 | 100 Hz | 15 Hz | ~0 % | 1 / 120 s | 118 / 120 s |
+
+On seed 7 the sim then ends the episode itself with MetaDrive's `out_of_road` (openpilot is a
+lane-keeper with no route-following, so it goes straight where the road turns). The `lagging`
+at the end of that run is the bridge having stopped sending CAN, not openpilot falling behind. In
+the seed 3 run there was one self-recovering one-second blip (model step spiked to 100 ms on a
+shared host); the car re-enabled by itself. In that run the car also stayed near standstill
+(~0.2 m/s) while engaged — not investigated; it is a driving-behavior question, not a timing one.
+The native UI was **not** part of these measurements (see below).
+
+**Tuning knobs / honest limits.**
+- The margin is thin by design: 15 Hz leaves ~5 ms per frame. Another GPU-heavy app on the same
+  Mac (the native UI at high resolution, a video call) can push a model step past 66 ms and cause
+  drops. If you see `commIssue`/`locationdTemporaryError` returning, lower it:
+  `SIM_CAMERA_HZ=12 av-sim/run_demo.sh`. On a much faster machine, `SIM_CAMERA_HZ=20` restores
+  stock behavior.
+- `BLOCK=ui,soundd` (browser viewer only) removes the UI's share of the load. Also note that if the
+  `ui` process dies (no desktop session, or you close its window), the manager reports
+  `processNotRunning` and openpilot will not engage; either keep the window up or block `ui`.
+- The `lagging` check itself is left untouched, on purpose: it is exactly the safety signal that
+  tells you the real-time loop is broken.
+
+**Watching it yourself.** In a second terminal while `run_demo.sh` runs:
+
+```bash
+av-sim/openpilot/.venv/bin/python av-sim/bridge/lag_probe.py 60
+```
+
+prints one line per second — `can` / `carState` / camera / `modelV2` rates, model step time and
+frame-drop %, speed and steering, `selfdriveState.state`, and the active events — and a summary of
+how many seconds were engaged and how many had `selfdrivedLagging`. Healthy: `carState` ≈ 100,
+`modelV2` ≈ `cam`, drop ≈ 0 %, `state=enabled`, `events` empty or just `cruiseMismatch` (its alert
+is commented out upstream; harmless).
+
 ## Verification status of the combined run (2026-10-23)
 
 `run_demo.sh` was run end-to-end from a headless automation session on Owen's Mac. Verified:
@@ -233,13 +321,22 @@ that session, and a later run's `ui` could not open a window at all (no monitor 
 that session, `GLFW: Failed to determine Monitor`); (2) openpilot actually **engaging** in that
 session — `selfdriveState.engageable` stayed false with a `selfdrivedLagging` onroad event, and
 it did so identically with the UI blocked (`BIG=0 BLOCK=ui,soundd`, i.e. the 2026-10-09 working
-configuration), so it is not caused by the native UI; the host was also heavily shared and
-CPU-contended at the time. Re-confirm engagement and the UI picture on a quiet, logged-in desktop.
+configuration), so it is not caused by the native UI.
+
+**Update (same day): the lagging disengage is fixed** — see "Staying engaged on a laptop" above;
+headless with `BLOCK=soundd,ui`, openpilot now stays engaged for the whole run. **Still not
+verified with the native UI on:** the automation session has no display, so `ui` can't open a
+window there (and when `ui` is not running, openpilot refuses to engage — `processNotRunning`). The
+UI shares the GPU with the driving model, which has only ~5 ms of headroom at 15 Hz, so confirm on
+a logged-in desktop with `lag_probe.py` running; drop `SIM_CAMERA_HZ` if drops reappear.
 
 ## Open items
 
 - **Combined native-UI + browser-viewer run needs one confirmation on a quiet desktop** — see
-  "Verification status" above (visual UI check and engagement).
+  "Verification status" above (visual UI check, and that engagement holds with the UI's GPU load).
+- **The sim ends with `out_of_road` where the road turns** (seed 7, ~1 minute in): openpilot only
+  keeps its lane; there is no navigation to follow the generated route. Needs route-following
+  (the waypoint item below) or a simpler map to drive for longer.
 - **Arbitrary waypoint coordinates.** Current state generates a random start/destination via
   MetaDrive's `BIG_BLOCK_NUM` map type. Real "type in A and B" needs MetaDrive's route/navigation
   API — next step is reading `metadrive`'s own source (it's not vendored here) to find the right

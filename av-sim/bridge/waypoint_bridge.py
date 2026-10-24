@@ -16,6 +16,7 @@ verified against actual metadrive source in this repo yet (metadrive is a pip de
 openpilot, not vendored here) -- see README.md's Open Items.
 """
 import math
+import os
 import sys
 from pathlib import Path
 from multiprocessing import Queue
@@ -30,6 +31,28 @@ from openpilot.tools.sim.bridge.metadrive.metadrive_bridge import MetaDriveBridg
 from openpilot.tools.sim.bridge.metadrive.metadrive_common import RGBCameraRoad, RGBCameraWide  # noqa: E402
 from openpilot.tools.sim.bridge.metadrive.metadrive_world import MetaDriveWorld  # noqa: E402
 from openpilot.tools.sim.lib.camerad import W, H  # noqa: E402
+import openpilot.tools.sim.bridge.common as sim_common  # noqa: E402
+
+# Camera frame rate sent to openpilot. Stock tools/sim hard-codes 20 Hz (the rate openpilot's
+# driving model is designed for), but on a laptop the model needs ~60 ms/frame (measured on an
+# M3: av-sim/README.md, "Staying engaged on a laptop"), i.e. it can only sustain ~16 Hz. At 20 Hz
+# in, ~1 frame in 6 gets dropped, and modeld marks cameraOdometry invalid on ANY dropped frame
+# (modeld.py: `vipc_dropped_frames < 1`), which cascades through locationd into a SOFT_DISABLE.
+# Feeding the model fewer frames than it can chew -- evenly spaced, none dropped -- avoids that.
+# Set SIM_CAMERA_HZ=20 to restore stock behavior (e.g. on a much faster machine).
+CAMERA_HZ = float(os.environ.get("SIM_CAMERA_HZ", "15"))
+
+_stock_rk_loop = sim_common.rk_loop
+
+
+def _rk_loop_with_camera_hz(function, hz, exit_event):
+  # SimulatorBridge._run starts exactly one thread at 20 Hz (the camera sender); the CAN thread
+  # is 100 Hz. Retarget only the 20 Hz one. Applied at import time so it also takes effect in the
+  # spawned bridge process (macOS uses spawn, which re-imports this module).
+  return _stock_rk_loop(function, CAMERA_HZ if hz == 20 else hz, exit_event)
+
+
+sim_common.rk_loop = _rk_loop_with_camera_hz
 
 
 class WaypointMetaDriveBridge(MetaDriveBridge):

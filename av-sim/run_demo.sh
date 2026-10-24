@@ -19,7 +19,9 @@
 #   e.g.                   av-sim/run_demo.sh --seed 7
 # Env overrides:           VIEWER_PORT (default 8000), WS_PORT (default 8765),
 #                          OPENPILOT_WARMUP seconds to wait before starting the bridge (default 8),
-#                          NO_BROWSER=1 to skip opening the browser viewer
+#                          NO_BROWSER=1 to skip opening the browser viewer,
+#                          SIM_CAMERA_HZ camera frame rate fed to openpilot (default 15; stock
+#                          openpilot sim is 20, but a laptop's driving model sustains only ~16)
 #
 # The waypoint bridge runs in the FOREGROUND of this terminal on purpose: it reads the driving
 # keys (2/1 engage, w a s d, q quit -- see README.md) raw from this terminal's stdin.
@@ -42,6 +44,11 @@ fi
 source "$VENV/bin/activate"
 
 mkdir -p "$REPO_ROOT/av-sim/logs"
+
+# macOS timing fix (see "Staying engaged on a laptop" in av-sim/README.md): applies a one-line
+# msgq patch and rebuilds, once. No-op when already applied. Without it openpilot disengages with
+# "System Lagging" within seconds on a Mac.
+"$REPO_ROOT/av-sim/apply_patches.sh" || exit 1
 
 PIDS=()
 cleanup() {
