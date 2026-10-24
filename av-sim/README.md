@@ -124,6 +124,11 @@ output goes to `av-sim/logs/{openpilot,telemetry,viewer}.out`. Env overrides: `V
 They are **two independent consumers of the same live session, not two modes you pick between**,
 and nothing needs to be wired between them:
 
+- **What each one actually shows you.** The native UI is a windshield-view HUD
+  (`selfdrive/ui/onroad/cameraview.py`) — the live camera feed with lane/path overlays, i.e. what
+  the car *sees*, not what it looks like from outside. It will never show you a car. The browser
+  viewer is the 3rd-person view — vehicle position, speed, and engagement state (`status:
+  ENGAGED`, `x`/`z`/`speed`). If you're looking for "the car," that's the browser tab.
 - openpilot's native UI is just the `ui` process that openpilot's own manager spawns when
   `launch_openpilot.sh` starts. It reads the cereal bus (and the camera frames the bridge
   publishes over VisionIPC) exactly like `telemetry_server.py` does — same bus, same MetaDrive
@@ -219,6 +224,20 @@ Quick sanity check if nothing seems to respond: press `w` first — if speed/x/z
 the browser, input is reaching the bridge fine and it's just a matter of engaging (`2` then `1`).
 If `w` does nothing either, that's a focus/input problem, not an engagement one.
 
+**Once engaged, let go of the keyboard.** `2` then `1` hands lateral/longitudinal control to
+openpilot's own driving model — it lane-keeps on its own; holding `w a s d` afterward just fights
+the controller and isn't needed to keep driving. The 118-of-120s and 56-of-120s runs measured
+below were produced exactly this way: engage once, then leave it alone.
+
+**Running out of road quickly is expected, not a bug.** openpilot here only keeps its lane —
+there's no route-following, so once the generated road ends (or bends somewhere it won't follow),
+the episode ends via MetaDrive's `out_of_road`. The default map (`--num-blocks 12`) is short; for
+a longer drive, pass a bigger map and/or a seed known to run long, e.g.:
+
+```bash
+av-sim/run_demo.sh --seed 3 --num-blocks 24
+```
+
 ## Staying engaged on a laptop (the "System Lagging" disengage)
 
 On a stock checkout on a Mac, openpilot engages and then immediately disengages with
@@ -277,7 +296,10 @@ trained on. Steering/speed behaved sensibly in testing, but treat the sim's driv
 
 On seed 7 the sim then ends the episode itself with MetaDrive's `out_of_road` (openpilot is a
 lane-keeper with no route-following, so it goes straight where the road turns). The `lagging`
-at the end of that run is the bridge having stopped sending CAN, not openpilot falling behind. In
+at the end of that run is the bridge having stopped sending CAN, not openpilot falling behind.
+**A few short lagging blips over an otherwise-engaged run (like the 1-of-120s above) are
+expected** — the margin is thin by design (see "Tuning knobs" below); it's the baseline
+40-of-40s stock behavior that's the real problem, not an occasional one-second recovery. In
 the seed 3 run there was one self-recovering one-second blip (model step spiked to 100 ms on a
 shared host); the car re-enabled by itself. In that run the car also stayed near standstill
 (~0.2 m/s) while engaged — not investigated; it is a driving-behavior question, not a timing one.
@@ -336,7 +358,8 @@ a logged-in desktop with `lag_probe.py` running; drop `SIM_CAMERA_HZ` if drops r
   "Verification status" above (visual UI check, and that engagement holds with the UI's GPU load).
 - **The sim ends with `out_of_road` where the road turns** (seed 7, ~1 minute in): openpilot only
   keeps its lane; there is no navigation to follow the generated route. Needs route-following
-  (the waypoint item below) or a simpler map to drive for longer.
+  (the waypoint item below) or a simpler map to drive for longer. In the meantime, see "Driving
+  the car" above for the `--seed`/`--num-blocks` workaround.
 - **Arbitrary waypoint coordinates.** Current state generates a random start/destination via
   MetaDrive's `BIG_BLOCK_NUM` map type. Real "type in A and B" needs MetaDrive's route/navigation
   API — next step is reading `metadrive`'s own source (it's not vendored here) to find the right
