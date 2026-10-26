@@ -1,0 +1,17 @@
+diff --git a/opendbc/car/mock/interface.py b/opendbc/car/mock/interface.py
+index 0c5f459d..7999bc2d 100755
+--- a/opendbc/car/mock/interface.py
++++ b/opendbc/car/mock/interface.py
+@@ -18,4 +18,12 @@ class CarInterface(CarInterfaceBase):
+     ret.lateralTuning.pid.kiBP = [0.]
+     ret.lateralTuning.pid.kiV = [0.]
+     ret.dashcamOnly = True
++    # av-sim: this mock car's CarState.update() never reads cruise buttons (it always returns
++    # a bare default CarState), so with the base pcmCruise=True default, selfdrive/car/cruise.py
++    # reads v_cruise_kph straight from CS.cruiseState.speed, which never rises above its default
++    # -- the car pins near 0 m/s regardless of Resume/Accel (keys "1"/"2") presses. pcmCruise =
++    # False routes speed through VCruiseHelper._update_v_cruise_non_pcm instead, which actually
++    # implements button-driven speed increments and a real floor (V_CRUISE_INITIAL = 40 kph).
++    # See av-sim/README.md, "Driving the car".
++    ret.pcmCruise = False
+     return ret

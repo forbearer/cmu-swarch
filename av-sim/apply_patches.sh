@@ -8,25 +8,26 @@
 # msgq_repo inside it), pinned by the root repo. The patch files are the reviewable record of
 # exactly how this demo differs from upstream.
 #
-# Currently only one patch:
-#   msgq-macos-poll-1ms.patch  (msgq_repo) -- macOS-only; on Linux the patched code is not compiled
+# Patches:
+#   msgq-macos-poll-1ms.patch        (msgq_repo)    -- macOS-only; needs a native rebuild.
+#   mock-car-pcmcruise-false.patch   (opendbc_repo) -- all platforms; pure Python, no rebuild.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OP="$REPO_ROOT/av-sim/openpilot"
-changed=0
+needs_rebuild=0
 
-apply_patch() {  # apply_patch <patch file> <git work tree to apply it in>
-  local patch="$1" tree="$2"
+apply_patch() {  # apply_patch <patch file> <git work tree to apply it in> [rebuild=1]
+  local patch="$1" tree="$2" rebuild="${3:-1}"
   if git -C "$tree" apply --reverse --check "$patch" 2>/dev/null; then
     return 0                                   # already applied
   elif git -C "$tree" apply --check "$patch" 2>/dev/null; then
     git -C "$tree" apply "$patch"
     echo "applied $(basename "$patch") to ${tree#"$REPO_ROOT"/}"
-    changed=1
+    (( rebuild )) && needs_rebuild=1
   else
     echo "ERROR: $(basename "$patch") neither applies nor is already applied in ${tree#"$REPO_ROOT"/} --" \
-         "the pinned openpilot/msgq version probably changed; regenerate the patch." >&2
+         "the pinned openpilot/opendbc/msgq version probably changed; regenerate the patch." >&2
     exit 1
   fi
 }
@@ -36,7 +37,10 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   apply_patch "$REPO_ROOT/av-sim/patches/msgq-macos-poll-1ms.patch" "$OP/msgq_repo"
 fi
 
-if (( changed )); then
+# Pure Python; applies on every platform, no rebuild needed.
+apply_patch "$REPO_ROOT/av-sim/patches/mock-car-pcmcruise-false.patch" "$OP/opendbc_repo" 0
+
+if (( needs_rebuild )); then
   echo "Rebuilding openpilot native code (scons -u, one-time, ~30s)..."
   # shellcheck disable=SC1091
   mkdir -p "$REPO_ROOT/av-sim/logs"

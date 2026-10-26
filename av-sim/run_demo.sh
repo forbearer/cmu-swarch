@@ -45,9 +45,8 @@ source "$VENV/bin/activate"
 
 mkdir -p "$REPO_ROOT/av-sim/logs"
 
-# macOS timing fix (see "Staying engaged on a laptop" in av-sim/README.md): applies a one-line
-# msgq patch and rebuilds, once. No-op when already applied. Without it openpilot disengages with
-# "System Lagging" within seconds on a Mac.
+# Applies av-sim/patches/ (macOS timing fix + mock-car cruise-speed fix; see README.md's
+# "Staying engaged on a laptop" and "Driving the car" sections). No-op when already applied.
 "$REPO_ROOT/av-sim/apply_patches.sh" || exit 1
 
 PIDS=()

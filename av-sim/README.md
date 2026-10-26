@@ -227,7 +227,20 @@ If `w` does nothing either, that's a focus/input problem, not an engagement one.
 **Once engaged, let go of the keyboard.** `2` then `1` hands lateral/longitudinal control to
 openpilot's own driving model — it lane-keeps on its own; holding `w a s d` afterward just fights
 the controller and isn't needed to keep driving. The 118-of-120s and 56-of-120s runs measured
-below were produced exactly this way: engage once, then leave it alone.
+below were produced exactly this way: engage once, then leave it alone. Press `1` (Resume/Accel)
+multiple times after engaging to raise cruise speed further, same as a real adaptive-cruise car.
+
+### Fixing the near-standstill speed cap
+
+On a stock checkout, the car engages but speed pins near 0 m/s regardless of how many times
+`1` (Resume/Accel) is pressed. Root cause: `opendbc/car/mock/carstate.py`'s `CarState.update()`
+is a no-op stub that always returns a bare default `CarState`, never reflecting cruise-button
+presses. Combined with the base `pcmCruise = True` default, `selfdrive/car/cruise.py` reads
+`v_cruise_kph` straight off that always-default `cruiseState.speed`, which never rises. Fix
+(`av-sim/patches/mock-car-pcmcruise-false.patch`, applied by `apply_patches.sh` like the msgq
+patch, pure Python, no rebuild needed): set `pcmCruise = False` on the mock car, which routes
+speed through `VCruiseHelper._update_v_cruise_non_pcm` instead — the fully-implemented path with
+a real floor (`V_CRUISE_INITIAL` = 40 kph) and actual per-press increments.
 
 **Running out of road quickly is expected, not a bug.** openpilot here only keeps its lane —
 there's no route-following, so once the generated road ends (or bends somewhere it won't follow),
@@ -302,7 +315,8 @@ expected** — the margin is thin by design (see "Tuning knobs" below); it's the
 40-of-40s stock behavior that's the real problem, not an occasional one-second recovery. In
 the seed 3 run there was one self-recovering one-second blip (model step spiked to 100 ms on a
 shared host); the car re-enabled by itself. In that run the car also stayed near standstill
-(~0.2 m/s) while engaged — not investigated; it is a driving-behavior question, not a timing one.
+(~0.2 m/s) while engaged — **investigated and fixed 2026-10-26**, see "Fixing the
+near-standstill speed cap" below.
 The native UI was **not** part of these measurements (see below).
 
 **Tuning knobs / honest limits.**
