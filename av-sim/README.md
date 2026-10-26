@@ -232,15 +232,42 @@ multiple times after engaging to raise cruise speed further, same as a real adap
 
 ### Fixing the near-standstill speed cap
 
-On a stock checkout, the car engages but speed pins near 0 m/s regardless of how many times
-`1` (Resume/Accel) is pressed. Root cause: `opendbc/car/mock/carstate.py`'s `CarState.update()`
-is a no-op stub that always returns a bare default `CarState`, never reflecting cruise-button
-presses. Combined with the base `pcmCruise = True` default, `selfdrive/car/cruise.py` reads
-`v_cruise_kph` straight off that always-default `cruiseState.speed`, which never rises. Fix
-(`av-sim/patches/mock-car-pcmcruise-false.patch`, applied by `apply_patches.sh` like the msgq
-patch, pure Python, no rebuild needed): set `pcmCruise = False` on the mock car, which routes
-speed through `VCruiseHelper._update_v_cruise_non_pcm` instead — the fully-implemented path with
-a real floor (`V_CRUISE_INITIAL` = 40 kph) and actual per-press increments.
+This took two passes to actually root-cause — recorded here in order, including the wrong turn,
+because the first fix looked right until tested live.
+
+**First pass (incomplete): assumed the sim used openpilot's `mock` car.** It doesn't.
+`tools/sim/lib/simulated_car.py` packs real Honda Bosch Radarless CAN frames
+(`honda_bosch_radarless_generated` DBC, `safetyModel: hondaBosch`), so openpilot's actual Honda
+car interface handles this sim, never `opendbc/car/mock/`. `mock/carstate.py` *is* a genuinely
+broken no-op stub (always returns a bare default `CarState`, ignoring cruise-button presses
+entirely) — `av-sim/patches/mock-car-pcmcruise-false.patch` fixes that for real, but it's dead
+code on this sim's actual car model, not the cause of the reported symptom.
+
+**Real cause: end-to-end (Experimental Mode) longitudinal planning.** `ExperimentalMode`
+defaults to **on** (`common/params_keys.h`), which routes longitudinal planning through the
+vision model's own end-to-end speed/accel prediction (`longitudinalPlan.longitudinalPlanSource
+== "e2e"`) instead of the standard MPC-based cruise controller. Measured live with
+`bridge/accel_probe.py` (below): the plan held a steady `+2.0 m/s^2` target the whole time, but
+the actual commanded `carControl.actuators.accel` tracked it loosely and sometimes went
+*negative* — `vEgo` climbed from ~2 to ~4 m/s then reversed, never getting anywhere near the set
+speed. The small model at a reduced `SIM_CAMERA_HZ` (see above) isn't reliable enough for e2e
+longitudinal here. Fix (`av-sim/patches/disable-experimental-mode.patch`, applied by
+`apply_patches.sh`, pure Python, no rebuild): `SimulatorBridge.__init__` now also sets
+`Params().put_bool("ExperimentalMode", False)` alongside the existing `AlphaLongitudinalEnabled`
+override. Confirmed live on the same seed: `vEgo` climbed cleanly past 15 m/s (the run then ended
+via `out_of_road` — expected, see "Running out of road quickly is expected" above, not a sign of
+another cap).
+
+**Diagnostic script**, same pattern as `lag_probe.py`:
+
+```bash
+av-sim/openpilot/.venv/bin/python av-sim/bridge/accel_probe.py 45
+```
+
+Prints `carState`/`carControl`/`longitudinalPlan`/`radarState` once a second — `vEgo`, `vCruise`,
+the actual commanded accel, the plan's target speed/accel, its source (`e2e` vs the standard
+planner), and whether a lead is detected (radarless Hondas derive "lead" from the camera model,
+not radar — worth checking if this ever recurs with a phantom lead instead).
 
 **Running out of road quickly is expected, not a bug.** openpilot here only keeps its lane —
 there's no route-following, so once the generated road ends (or bends somewhere it won't follow),

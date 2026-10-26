@@ -1,0 +1,19 @@
+diff --git a/openpilot/tools/sim/bridge/common.py b/openpilot/tools/sim/bridge/common.py
+index 1d00e3b..7dc7046 100644
+--- a/openpilot/tools/sim/bridge/common.py
++++ b/openpilot/tools/sim/bridge/common.py
+@@ -40,6 +40,14 @@ class SimulatorBridge(ABC):
+     set_params_enabled()
+     self.params = Params()
+     self.params.put_bool("AlphaLongitudinalEnabled", True, block=True)
++    # av-sim: ExperimentalMode defaults to on (params_keys.h) and drives longitudinal planning
++    # off the vision model's own end-to-end speed/accel prediction (longitudinalPlanSource
++    # "e2e") instead of the standard MPC-based cruise controller. Measured live: with it on,
++    # accels stayed inconsistent (sometimes negative) despite a steady +2.0 m/s2 plan target,
++    # and vEgo plateaued around 3-4 m/s; with it off, vEgo climbed cleanly past 15 m/s on the
++    # same seed. The small model + reduced SIM_CAMERA_HZ (see above) isn't reliable enough for
++    # e2e longitudinal here. See av-sim/README.md, "Fixing the near-standstill speed cap".
++    self.params.put_bool("ExperimentalMode", False, block=True)
+ 
+     self.rk = Ratekeeper(100, None)
+ 

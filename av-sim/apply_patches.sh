@@ -11,6 +11,7 @@
 # Patches:
 #   msgq-macos-poll-1ms.patch        (msgq_repo)    -- macOS-only; needs a native rebuild.
 #   mock-car-pcmcruise-false.patch   (opendbc_repo) -- all platforms; pure Python, no rebuild.
+#   disable-experimental-mode.patch  (openpilot)    -- all platforms; pure Python, no rebuild.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -39,6 +40,7 @@ fi
 
 # Pure Python; applies on every platform, no rebuild needed.
 apply_patch "$REPO_ROOT/av-sim/patches/mock-car-pcmcruise-false.patch" "$OP/opendbc_repo" 0
+apply_patch "$REPO_ROOT/av-sim/patches/disable-experimental-mode.patch" "$OP" 0
 
 if (( needs_rebuild )); then
   echo "Rebuilding openpilot native code (scons -u, one-time, ~30s)..."
